@@ -9,7 +9,7 @@ require 'yaml'
 require 'tty-command'
 require 'threadify'
 
-class Sslhost
+class NessusHost
 	attr_accessor :ip, :ports
 	@@all_hosts = []
 
@@ -17,6 +17,7 @@ class Sslhost
 		@ip = ip
 		@ports = {}
 		@@all_hosts << self
+		#We should add a bunch of attributes in here for each vuln or have vulnerabilities as their own object
 	end
 
 	def self.all_hosts
@@ -24,6 +25,13 @@ class Sslhost
 	end
 end
 
+
+class Vulnerability
+	#how to
+	#output
+	#severity
+	#port
+end
 
 opts = Trollop::options do
 	opt :csv, "Output to CSV", :type => :string
@@ -36,16 +44,16 @@ end
 RubyNessus::Parse.new(opts[:nessus]) do |scan|
 	puts "Hosts in file: #{scan.host_count}"
 	scan.hosts.each do |host|
-		h = Sslhost.new(host.ip)
-		unless host.event_count.nil?
-			host.events.select { |x| x.plugin_id == 56984 }.each do |ssltls|
+		h = NessusHost.new(host.ip)
+		unless host.event_count.nil? #unless we have NO plugins for the host do the following
+			host.events.select { |x| x.plugin_id == 56984 }.each do |ssltls| #For the events (plugins) for the host, look for a cerain pluginID
 				h.ports[ssltls.port.number.value] = ""
 			end
 		end
 	end
 end
 
-Sslhost.all_hosts.threadify(opts[:threads]) {|host|
+NessusHost.all_hosts.threadify(opts[:threads]) {|host|
 	unless host.ports.empty?
 		puts "Doing host: #{host.ip}"
 		host.ports.each do |port, data|
@@ -60,7 +68,7 @@ Sslhost.all_hosts.threadify(opts[:threads]) {|host|
 if opts[:csv]
 	CSV.open(opts[:csv] + ".csv", "w+") do |csv|
 		csv << ["IP", "Port", "Output"]
-		Sslhost.all_hosts.each do |host|
+		NessusHost.all_hosts.each do |host|
 			host.ports.each do |port, data|
 				csv << [host.ip, port, data]
 			end
